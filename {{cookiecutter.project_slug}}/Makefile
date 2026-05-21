@@ -108,9 +108,9 @@ docker-clean: ## Clean up Docker resources
 	docker compose down -v --remove-orphans
 	docker system prune -f
 
-docker-rebuild: ## Rebuild and restart services
+docker-rebuild: ## Rebuild and restart services (rebuilds ALL profiles incl. app-dev)
 	docker compose $(COMPOSE_ALL_PROFILES) down --remove-orphans
-	docker compose build --no-cache
+	docker compose $(COMPOSE_ALL_PROFILES) build --no-cache
 	docker compose up -d
 
 # Environment setup
