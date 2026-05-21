@@ -81,8 +81,13 @@ docker-up: ## Start all services with docker-compose
 docker-up-dev: ## Start development environment
 	docker compose --profile dev up -d
 
-docker-down: ## Stop all services
-	docker compose down
+COMPOSE_ALL_PROFILES := --profile dev --profile test --profile migrate --profile dev-tools
+
+docker-down: ## Stop all services (across every profile)
+	docker compose $(COMPOSE_ALL_PROFILES) down --remove-orphans
+
+docker-down-volumes: ## Stop all services AND remove volumes (destroys DB data)
+	docker compose $(COMPOSE_ALL_PROFILES) down -v --remove-orphans
 
 docker-logs: ## Show logs for all services
 	docker compose logs -f
@@ -104,7 +109,7 @@ docker-clean: ## Clean up Docker resources
 	docker system prune -f
 
 docker-rebuild: ## Rebuild and restart services
-	docker compose down
+	docker compose $(COMPOSE_ALL_PROFILES) down --remove-orphans
 	docker compose build --no-cache
 	docker compose up -d
 
