@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Base image with system dependencies
 # =============================================================================
-FROM python:3.14-slim-bookworm AS base
+FROM python:{{ cookiecutter.python_version }}-slim-bookworm AS base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -39,7 +39,7 @@ COPY pyproject.toml README.md ./
 # Create virtual environment and install dependencies
 RUN poetry config virtualenvs.create true && \
     poetry config virtualenvs.in-project true && \
-    poetry env use python3.12 && \
+    poetry env use python{{ cookiecutter.python_version }} && \
     poetry install --no-root --only main --no-interaction --no-ansi
 
 # =============================================================================
@@ -77,7 +77,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/docs || exit 1
 
 # Default command
-CMD ["poetry", "run", "python", "-m", "{{cookiecutter.project_slug}}/main.py"]
+CMD ["poetry", "run", "uvicorn", "{{cookiecutter.project_slug}}.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # =============================================================================
 # Stage 5: Development image
@@ -105,7 +105,7 @@ USER appuser
 EXPOSE 8000
 
 # Default command for development
-CMD ["poetry", "run", "uvicorn", "src.{{cookiecutter.project_slug}}.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["poetry", "run", "uvicorn", "{{cookiecutter.project_slug}}.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # =============================================================================
 # Stage 6: Testing image

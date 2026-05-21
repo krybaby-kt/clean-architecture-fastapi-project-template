@@ -27,7 +27,7 @@ class RedisSettings(BaseSettings):
     redis_host: str = Field("redis", alias="REDIS_HOST")
     redis_db: int = Field(0, alias="REDIS_DB")
     redis_cache_ttl: int = Field(3600, alias="REDIS_CACHE_TTL")  # 1 hour default TTL
-    redis_cache_prefix: str = Field("antiques:", alias="REDIS_CACHE_PREFIX")
+    redis_cache_prefix: str = Field("{{ cookiecutter.project_slug }}:", alias="REDIS_CACHE_PREFIX")
 
     class Config:
         env_file = ".env"

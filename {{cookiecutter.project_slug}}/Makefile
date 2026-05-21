@@ -67,46 +67,46 @@ migrate-stamp: ## Stamp database with current migration (without applying)
 
 # Docker commands
 docker-build: ## Build Docker image for production
-	docker build --target production -t antiques:latest .
+	docker build --target production -t {{cookiecutter.project_slug}}:latest .
 
 docker-build-dev: ## Build Docker image for development
-	docker build --target development -t antiques:dev .
+	docker build --target development -t {{cookiecutter.project_slug}}:dev .
 
 docker-build-test: ## Build Docker image for testing
-	docker build --target testing -t antiques:test .
+	docker build --target testing -t {{cookiecutter.project_slug}}:test .
 
 docker-up: ## Start all services with docker-compose
-	docker-compose up -d
+	docker compose up -d
 
 docker-up-dev: ## Start development environment
-	docker-compose --profile dev up -d
+	docker compose --profile dev up -d
 
 docker-down: ## Stop all services
-	docker-compose down
+	docker compose down
 
 docker-logs: ## Show logs for all services
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-logs-app: ## Show logs for application
-	docker-compose logs -f app
+	docker compose logs -f app
 
 docker-shell: ## Open shell in running app container
-	docker-compose exec app bash
+	docker compose exec app bash
 
 docker-migrate: ## Run database migrations
-	docker-compose --profile migrate run --rm migrate
+	docker compose --profile migrate run --rm migrate
 
 docker-test: ## Run tests in Docker
-	docker-compose --profile test run --rm test
+	docker compose --profile test run --rm test
 
 docker-clean: ## Clean up Docker resources
-	docker-compose down -v --remove-orphans
+	docker compose down -v --remove-orphans
 	docker system prune -f
 
 docker-rebuild: ## Rebuild and restart services
-	docker-compose down
-	docker-compose build --no-cache
-	docker-compose up -d
+	docker compose down
+	docker compose build --no-cache
+	docker compose up -d
 
 # Environment setup
 setup-env: ## Create .env file from template
@@ -115,29 +115,61 @@ setup-env: ## Create .env file from template
 # Development helpers
 
 dev-setup-docker: setup-env ## Set up development environment with Docker
-	docker-compose --profile dev up -d postgres redis
+{% if cookiecutter.use_database == "postgresql" and cookiecutter.use_cache == "redis" %}
+	docker compose --profile dev up -d postgres redis
+{% elif cookiecutter.use_database == "postgresql" and cookiecutter.use_cache == "keydb" %}
+	docker compose --profile dev up -d postgres keydb
+{% elif cookiecutter.use_database == "postgresql" and cookiecutter.use_cache == "dragonfly" %}
+	docker compose --profile dev up -d postgres dragonfly
+{% elif cookiecutter.use_database == "postgresql" and cookiecutter.use_cache == "tarantool" %}
+	docker compose --profile dev up -d postgres tarantool
+{% elif cookiecutter.use_database == "postgresql" %}
+	docker compose --profile dev up -d postgres
+{% elif cookiecutter.use_database == "mysql" and cookiecutter.use_cache == "redis" %}
+	docker compose --profile dev up -d mysql redis
+{% elif cookiecutter.use_database == "mysql" %}
+	docker compose --profile dev up -d mysql
+{% elif cookiecutter.use_database == "sqlite" %}
+	docker compose --profile dev --profile init up -d sqlite-init
+{% endif %}
 	@echo "Waiting for services to be ready..."
 	@sleep 10
-	./scripts/init-db.sh
-	make docker-migrate
+{% if cookiecutter.use_database != "none" %}
+	$(MAKE) docker-migrate
+{% endif %}
 	@echo "Development environment is ready!"
 	@echo "Run 'make docker-up-dev' to start the application"
 
 ci: check test ## Run CI pipeline (lint + type check + test)
 	@echo "CI pipeline completed successfully!"
 
+{% if cookiecutter.use_broker == "kafka" %}
 # Kafka commands
 docker-kafka-logs: ## Show Kafka logs
-	docker-compose logs -f kafka
+	docker compose logs -f kafka
 
 docker-kafka-shell: ## Open shell in Kafka container
-	docker-compose exec kafka bash
+	docker compose exec kafka bash
 
 docker-kafka-topics: ## List Kafka topics
-	docker-compose exec kafka kafka-topics --bootstrap-server localhost:9092 --list
+	docker compose exec kafka kafka-topics --bootstrap-server localhost:9092 --list
 
 docker-kafka-create-topic: ## Create Kafka topic for artifacts
-	docker-compose exec kafka kafka-topics --bootstrap-server localhost:9092 --create --topic new_artifacts --partitions 3 --replication-factor 1
+	docker compose exec kafka kafka-topics --bootstrap-server localhost:9092 --create --topic new_artifacts --partitions 3 --replication-factor 1
 
 docker-kafka-consume: ## Consume messages from Kafka topic
-	docker-compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic new_artifacts --from-beginning
+	docker compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic new_artifacts --from-beginning
+{% endif %}
+{% if cookiecutter.use_broker == "rabbitmq" %}
+# RabbitMQ commands
+docker-rabbitmq-logs: ## Show RabbitMQ logs
+	docker compose logs -f rabbitmq
+
+docker-rabbitmq-shell: ## Open shell in RabbitMQ container
+	docker compose exec rabbitmq bash
+{% endif %}
+{% if cookiecutter.use_broker == "nats" %}
+# NATS commands
+docker-nats-logs: ## Show NATS logs
+	docker compose logs -f nats
+{% endif %}

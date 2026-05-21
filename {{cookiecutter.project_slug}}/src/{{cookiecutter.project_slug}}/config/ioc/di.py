@@ -1,7 +1,9 @@
 from dishka import Provider
 
 from {{cookiecutter.project_slug}}.config.ioc.providers import (
+{% if cookiecutter.use_broker != "none" %}
     BrokerProvider,
+{% endif %}
     CacheProvider,
     DatabaseProvider,
     HTTPClientProvider,
@@ -15,17 +17,14 @@ from {{cookiecutter.project_slug}}.config.ioc.providers import (
 
 
 def get_providers() -> list[Provider]:
-    """
-    Returns a list of Dishka providers for dependency injection.
-
-    Returns:
-        list[Provider]: A list of configured providers.
-    """
+    """Returns the list of Dishka providers for dependency injection."""
     return [
         SettingsProvider(),
         DatabaseProvider(),
         HTTPClientProvider(),
+{% if cookiecutter.use_broker != "none" %}
         BrokerProvider(),
+{% endif %}
         RepositoryProvider(),
         ServiceProvider(),
         MapperProvider(),

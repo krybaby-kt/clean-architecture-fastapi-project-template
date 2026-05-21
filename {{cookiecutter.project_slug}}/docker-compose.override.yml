@@ -1,16 +1,26 @@
-version: '3.8'
-
+{% if cookiecutter.use_database in ["postgresql", "mysql"] %}
 services:
   adminer:
     image: adminer:latest
-    container_name: antiques-adminer
+    container_name: {{ cookiecutter.project_slug }}-adminer
     ports:
       - "8080:8080"
     environment:
+{% if cookiecutter.use_database == "postgresql" %}
       ADMINER_DEFAULT_SERVER: postgres
+{% endif %}
+{% if cookiecutter.use_database == "mysql" %}
+      ADMINER_DEFAULT_SERVER: mysql
+{% endif %}
     depends_on:
+{% if cookiecutter.use_database == "postgresql" %}
       - postgres
+{% endif %}
+{% if cookiecutter.use_database == "mysql" %}
+      - mysql
+{% endif %}
     networks:
-      - antiques-network
+      - {{ cookiecutter.project_slug }}-network
     profiles:
       - dev-tools
+{% endif %}

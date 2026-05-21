@@ -1,0 +1,5 @@
+# Force LF for shell scripts so they run inside Linux containers regardless of host OS.
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf

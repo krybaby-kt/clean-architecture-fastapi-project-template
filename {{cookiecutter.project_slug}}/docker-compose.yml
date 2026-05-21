@@ -1,53 +1,11 @@
-version: '3.8'
-
 # YAML Anchors for common configurations
 x-common-healthcheck: &common-healthcheck
   interval: 10s
   timeout: 5s
   retries: 5
 
-# Network configuration is handled individually per service
-
 x-common-volume: &common-volume
   driver: local
-
-x-app-environment: &app-environment
-  ENVIRONMENT: ${ENVIRONMENT:-production}
-  LOG_LEVEL: ${LOG_LEVEL:-INFO}
-  DEBUG: ${DEBUG:-false}
-  POSTGRES_USER: ${POSTGRES_USER}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  POSTGRES_SERVER: ${POSTGRES_SERVER}
-  POSTGRES_PORT: ${POSTGRES_PORT}
-  POSTGRES_DB: ${POSTGRES_DB}
-  MUSEUM_API_BASE: ${MUSEUM_API_BASE}
-  CATALOG_API_BASE: ${CATALOG_API_BASE}
-  HTTP_TIMEOUT: ${HTTP_TIMEOUT}
-  BROKER_URL: ${BROKER_URL}
-  BROKER_NEW_ARTIFACT_QUEUE: ${BROKER_NEW_ARTIFACT_QUEUE}
-  PUBLISH_RETRIES: ${PUBLISH_RETRIES}
-  PUBLISH_RETRY_BACKOFF: ${PUBLISH_RETRY_BACKOFF}
-
-x-app-dev-environment: &app-dev-environment
-  ENVIRONMENT: ${ENVIRONMENT:-dev}
-  LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
-  DEBUG: ${DEBUG:-true}
-  POSTGRES_USER: ${POSTGRES_USER}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  POSTGRES_SERVER: ${POSTGRES_SERVER}
-  POSTGRES_PORT: ${POSTGRES_PORT}
-  POSTGRES_DB: ${POSTGRES_DB}
-  MUSEUM_API_BASE: ${MUSEUM_API_BASE}
-  CATALOG_API_BASE: ${CATALOG_API_BASE}
-  HTTP_TIMEOUT: ${HTTP_TIMEOUT}
-  BROKER_URL: ${BROKER_URL}
-  BROKER_NEW_ARTIFACT_QUEUE: ${BROKER_NEW_ARTIFACT_QUEUE}
-  PUBLISH_RETRIES: ${PUBLISH_RETRIES}
-  PUBLISH_RETRY_BACKOFF: ${PUBLISH_RETRY_BACKOFF}
-
-# Test environment configuration is handled individually per service
-
-# Migration configuration is handled individually per service
 
 services:
 {% if cookiecutter.use_database == "postgresql" %}
@@ -60,7 +18,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -134,12 +92,22 @@ services:
     container_name: {{ cookiecutter.project_slug }}-sqlite-init
     volumes:
       - sqlite_data:/data
-      - ./scripts/init-sqlite.sh:/init-sqlite.sh:ro
-    command: ["/bin/sh", "/init-sqlite.sh"]
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /data
+        DB=/data/{{ cookiecutter.database_name }}.db
+        if [ ! -f "$$DB" ]; then
+          echo "Creating SQLite database at $$DB"
+          : > "$$DB"
+          chmod 666 "$$DB"
+        else
+          echo "SQLite database already exists at $$DB"
+        fi
     networks:
       - {{ cookiecutter.project_slug }}-network
-    profiles:
-      - init
 {% endif %}
 
 {% if cookiecutter.use_cache == "redis" %}
@@ -216,34 +184,27 @@ services:
 {% endif %}
 
 {% if cookiecutter.use_broker == "kafka" %}
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.9.4
-    container_name: {{ cookiecutter.project_slug }}-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-    networks:
-      - {{ cookiecutter.project_slug }}-network
-
   kafka:
     image: confluentinc/cp-kafka:8.1.0
     container_name: {{ cookiecutter.project_slug }}-kafka
-    depends_on:
-      zookeeper:
-        condition: service_started
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # KRaft mode (Zookeeper-less, required for cp-kafka 8+)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
     ports:
       - "9092:9092"
     volumes:
@@ -252,7 +213,8 @@ services:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - {{ cookiecutter.project_slug }}-network
 {% endif %}
@@ -307,8 +269,12 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: {{ cookiecutter.project_slug }}-app
+    env_file:
+      - .env
     environment:
-      <<: *app-environment
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
     depends_on:
 {% if cookiecutter.use_database == "postgresql" %}
       postgres:
@@ -370,8 +336,12 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: {{ cookiecutter.project_slug }}-app-dev
+    env_file:
+      - .env
     environment:
-      <<: *app-dev-environment
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      DEBUG: ${DEBUG:-true}
     depends_on:
 {% if cookiecutter.use_database == "postgresql" %}
       postgres:
@@ -498,22 +468,28 @@ services:
       dockerfile: Dockerfile
       target: testing
     container_name: {{ cookiecutter.project_slug }}-test
+    env_file:
+      - .env
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-testing}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
+{% if cookiecutter.use_database == "postgresql" %}
       POSTGRES_USER: {{ cookiecutter.database_user }}
       POSTGRES_PASSWORD: {{ cookiecutter.database_password }}
       POSTGRES_SERVER: postgres-test
       POSTGRES_PORT: 5432
       POSTGRES_DB: {{ cookiecutter.database_name }}_test
-      MUSEUM_API_BASE: ${MUSEUM_API_BASE}
-      CATALOG_API_BASE: ${CATALOG_API_BASE}
-      HTTP_TIMEOUT: ${HTTP_TIMEOUT}
-      BROKER_URL: ${BROKER_URL}
-      BROKER_NEW_ARTIFACT_QUEUE: ${BROKER_NEW_ARTIFACT_QUEUE}
-      PUBLISH_RETRIES: ${PUBLISH_RETRIES}
-      PUBLISH_RETRY_BACKOFF: ${PUBLISH_RETRY_BACKOFF}
+      DATABASE_URL: postgresql+asyncpg://{{ cookiecutter.database_user }}:{{ cookiecutter.database_password }}@postgres-test:5432/{{ cookiecutter.database_name }}_test
+{% endif %}
+{% if cookiecutter.use_database == "mysql" %}
+      MYSQL_USER: {{ cookiecutter.database_user }}
+      MYSQL_PASSWORD: {{ cookiecutter.database_password }}
+      MYSQL_SERVER: mysql-test
+      MYSQL_PORT: 3306
+      MYSQL_DB: {{ cookiecutter.database_name }}_test
+      DATABASE_URL: mysql+aiomysql://{{ cookiecutter.database_user }}:{{ cookiecutter.database_password }}@mysql-test:3306/{{ cookiecutter.database_name }}_test
+{% endif %}
     depends_on:
 {% if cookiecutter.use_database == "postgresql" %}
       postgres-test:
@@ -586,8 +562,6 @@ volumes:
     <<: *common-volume
 {% endif %}
 {% if cookiecutter.use_broker == "kafka" %}
-  zookeeper_data:
-    <<: *common-volume
   kafka_data:
     <<: *common-volume
 {% endif %}

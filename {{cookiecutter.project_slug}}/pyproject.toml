@@ -3,7 +3,7 @@ name = "{{ cookiecutter.project_slug }}"
 version = "{{ cookiecutter.version }}"
 description = "{{ cookiecutter.project_description }}"
 readme = "README.md"
-requires-python = ">={{ cookiecutter.python_version }}"
+requires-python = ">={{ cookiecutter.python_version }},<4.0"
 dependencies = [
     "alembic==1.17.1",
 {% if cookiecutter.use_cache == "redis" %}    "redis==7.0.1",{% endif %}
