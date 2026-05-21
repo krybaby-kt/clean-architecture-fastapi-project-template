@@ -10,7 +10,7 @@ dependencies = [
 {% if cookiecutter.use_cache == "keydb" %}    "redis==7.0.1",{% endif %}
 {% if cookiecutter.use_cache == "tarantool" %}    "tarantool==2.8.0",{% endif %}
 {% if cookiecutter.use_cache == "dragonfly" %}    "redis==7.0.1",{% endif %}
-    "dishka==1.7.2",
+    "dishka==1.9.1",
     "fastapi==0.121.0",
 {% if cookiecutter.use_broker == "kafka" %}    "faststream[kafka]==0.6.3",{% endif %}
 {% if cookiecutter.use_broker == "rabbitmq" %}    "faststream[rabbit]==0.6.3",{% endif %}
@@ -24,7 +24,7 @@ dependencies = [
     "pydantic==2.12.4",
     "pydantic-settings==2.11.0",
     "sqlalchemy==2.0.44",
-    "stamina==25.1.0",
+    "stamina==26.1.0",
     "structlog==25.5.0",
     "watchfiles==1.1.1",
     "uvicorn[standard]==0.38.0",
@@ -323,19 +323,19 @@ filterwarnings = [
 dev = [
     # Linting and formatting
     "ruff==0.13.1",
-    "black==23.12.0",
-    "isort==5.12.0",
+    "black==26.3.1",
+    "isort==8.0.1",
 
     # Type checking
     "mypy==1.5.0",
     "types-requests==2.31.0",
     "types-redis==4.6.0",
-    "types-setuptools==68.0.0",
+    "types-setuptools==82.0.0.20260408",
 
     # Testing
     "pytest==8.4.2",
     "pytest-asyncio==0.21.0",
     "pytest-cov==4.1.0",
-    "Faker==25.0.0",
+    "Faker==40.13.0",
     "polyfactory==2.11.0; python_version >= '3.12' and python_version < '4.0'",
 ]
