@@ -1,4 +1,4 @@
-"""Simple Alembic environment configuration for the Antiques project."""
+"""Alembic environment configuration for {{ cookiecutter.project_name }}."""
 
 import asyncio
 from logging.config import fileConfig
@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# Import your models here
-from {{cookiecutter.project_slug}}.infrastructures.db.models.artifact import mapper_registry
+# Import the shared mapper_registry plus every model module so each table
+# is registered on the shared metadata before autogenerate runs.
+from {{cookiecutter.project_slug}}.infrastructures.db.models.base import mapper_registry
+from {{cookiecutter.project_slug}}.infrastructures.db.models import *  # noqa: F401, F403
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

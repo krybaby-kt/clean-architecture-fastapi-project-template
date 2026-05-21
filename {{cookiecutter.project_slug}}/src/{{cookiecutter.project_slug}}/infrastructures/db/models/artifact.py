@@ -3,9 +3,9 @@ from uuid import UUID
 
 from sqlalchemy import DateTime, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column, registry
+from sqlalchemy.orm import Mapped, mapped_column
 
-mapper_registry = registry()
+from {{cookiecutter.project_slug}}.infrastructures.db.models.base import mapper_registry
 
 
 @mapper_registry.mapped
